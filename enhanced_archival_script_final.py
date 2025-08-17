@@ -708,16 +708,9 @@ def process_file_batches(s3, bucket_name, filename, batch_size, config, db_confi
                 
                 # Execute archival insert (if configured)
                 if config.has_option('database', 'archival_insert_query'):
-                    try:
-                        archival_query = config.get('database', 'archival_insert_query').format(comma_separated_values)
-                        run_sql_queries(db_config['host'], db_config['user'], db_config['password'], 
-                                       db_config['database'], archival_query)
-                        print(f"Archival insert completed for batch {current_processing_batch}")
-                    except DuplicateKeyError as e:
-                        print(f"Duplicate key in archival for batch {current_processing_batch}: {str(e)}")
-                        # Log the duplicate key error but continue with deletion
-                        with open(log_files['main'], 'a') as f:
-                            f.write(f"DUPLICATE_KEY_ERROR: Batch {current_processing_batch} - {str(e)}\n")
+                    archival_query = config.get('database', 'archival_insert_query').format(comma_separated_values)
+                    run_sql_queries(db_config['host'], db_config['user'], db_config['password'], 
+                                   db_config['database'], archival_query)
                 
                 # Execute delete query
                 delete_query = config.get('database', 'delete_query').format(comma_separated_values)
