@@ -53,31 +53,46 @@ def setup_aws_clients(aws_profile='default'):
 
 def get_secret(secret_name):
     """Retrieve secret from AWS Secrets Manager"""
+    if secrets_client is None:
+        raise ProcessingError(f"AWS secrets client not initialized. Call setup_aws_clients() first.")
+    
     try:
+        print(f"Attempting to retrieve secret: {secret_name}")
         response = secrets_client.get_secret_value(SecretId=secret_name)
-        return json.loads(response['SecretString'])
+        secret_data = json.loads(response['SecretString'])
+        print(f"Successfully retrieved secret: {secret_name}")
+        return secret_data
     except Exception as e:
         raise ProcessingError(f"Failed to retrieve secret {secret_name}: {str(e)}")
 
 def load_configuration(config_file):
-    """Load configuration and secrets"""
-    global monitoring_connection_config, db_credentials
-    
+    """Load configuration file (without secrets)"""
     if not os.path.exists(config_file):
         raise ProcessingError(f"Configuration file not found: {config_file}")
     
     config = configparser.ConfigParser()
     config.read(config_file)
-    
-    # Load database credentials from secrets manager
-    db_secret_name = config.get('secrets', 'database_secret')
-    db_credentials = get_secret(db_secret_name)
-    
-    # Load monitoring database config from secrets manager
-    monitoring_secret_name = config.get('secrets', 'monitoring_db_secret')
-    monitoring_connection_config = get_secret(monitoring_secret_name)
-    
     return config
+
+def load_secrets(config):
+    """Load secrets from AWS Secrets Manager after AWS client is initialized"""
+    global monitoring_connection_config, db_credentials
+    
+    try:
+        # Load database credentials from secrets manager
+        db_secret_name = config.get('secrets', 'database_secret')
+        print(f"Loading database secret: {db_secret_name}")
+        db_credentials = get_secret(db_secret_name)
+        
+        # Load monitoring database config from secrets manager
+        monitoring_secret_name = config.get('secrets', 'monitoring_db_secret')
+        print(f"Loading monitoring database secret: {monitoring_secret_name}")
+        monitoring_connection_config = get_secret(monitoring_secret_name)
+        
+        print("Successfully loaded both secrets")
+        
+    except Exception as e:
+        raise ProcessingError(f"Failed to load secrets: {str(e)}")
 
 def execute_monitoring_query(query, params=None, fetch=False):
     """Execute query on monitoring database with improved error handling"""
@@ -514,11 +529,14 @@ def main():
         
         config_file = sys.argv[1]
         
-        # Load configuration
+        # Load configuration file (without secrets)
         config = load_configuration(config_file)
         
-        # Setup AWS clients
+        # Setup AWS clients FIRST
         s3 = setup_aws_clients(config.get('general', 'aws_profile', fallback='default'))
+        
+        # NOW load secrets after AWS client is initialized
+        load_secrets(config)
         
         # Setup monitoring
         create_monitoring_tables()
