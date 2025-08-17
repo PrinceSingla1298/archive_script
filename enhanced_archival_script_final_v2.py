@@ -893,17 +893,11 @@ def process_file_batches(s3, bucket_name, filename, batch_size, config, db_confi
                 # Execute based on processing mode
                 if processing_mode == 'ARCHIVE_THEN_DELETE':
                     # Execute archival insert first
-                    try:
-                        archival_query = archival_query_template.format(comma_separated_values)
-                        run_sql_queries(db_config['host'], db_config['user'], db_config['password'], 
-                                       db_config['database'], archival_query)
-                        print(f"Archival insert completed for batch {current_processing_batch}")
-                    except DuplicateKeyError as e:
-                        print(f"Duplicate key in archival for batch {current_processing_batch}: {str(e)}")
-                        # Log the duplicate key error but continue with deletion
-                        with open(log_files['main'], 'a') as f:
-                            f.write(f"DUPLICATE_KEY_ERROR: Batch {current_processing_batch} - {str(e)}\n")
-                    
+                    archival_query = archival_query_template.format(comma_separated_values)
+                    run_sql_queries(db_config['host'], db_config['user'], db_config['password'], 
+                    db_config['database'], archival_query)
+                    print(f"Archival insert completed for batch {current_processing_batch}")
+
                     # Execute delete query
                     delete_query = delete_query_template.format(comma_separated_values)
                     run_sql_queries(db_config['host'], db_config['user'], db_config['password'], 
@@ -957,18 +951,6 @@ def process_file_batches(s3, bucket_name, filename, batch_size, config, db_confi
                 write_batch_to_log_file(log_files['main'], filename, current_processing_batch, "COMPLETED")
                 
                 time.sleep(1)  # Small delay between batches
-                
-            except DuplicateKeyError as e:
-                # Handle duplicate key in archival gracefully
-                error_msg = f"Duplicate key error in batch {current_processing_batch}: {str(e)}"
-                print(error_msg)
-                with open(log_files['main'], 'a') as f:
-                    f.write(f"ERROR: {error_msg}\n")
-                
-                # Still mark batch as completed since we can continue
-                write_batch_to_log_file(log_files['main'], filename, current_processing_batch, "COMPLETED_WITH_DUPLICATES")
-                processed_batches += 1
-                total_records_processed += record_count
                 
             except Exception as e:
                 error_msg = f"Error processing batch {current_processing_batch} in file {filename}: {str(e)}"
