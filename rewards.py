@@ -149,8 +149,8 @@ def default():
             
 
         else:
-            print("No match found.")
-            sys.exit(1) 
+            st.warning(f"No matching log file found in {log_direcotry}. Unable to determine logs date.")
+            return
 
         filename_all_files=log_direcotry+"DataProcessingAllFilesDetails_"+getlogsdate+".txt"
         #st.write(filename_all_files)    
