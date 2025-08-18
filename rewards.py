@@ -67,9 +67,23 @@ def default():
         st.write(str(e))
         sys.exit(1)
 
-    ## Process detection (grep the config path used to launch the process)
-    pkill_stream = os.popen(f"ps -ef | grep -i \"{config_file_path}\" | grep -v grep | awk '{{print $2}}' ")
-    d_stream = os.popen(f"ps -ef | grep -i \"{config_file_path}\" | grep -v grep ")
+    ## Process detection (search multiple patterns)
+    def detect_archival_processes():
+        pattern = r"(rewards\\.ini|Mothership_Prod_RewardsDataArchival\\.py|RewardsDataArchival\\.py|DataArchival\\.py)"
+        cmd = f"ps -eo pid,cmd --no-headers | grep -E \"{pattern}\" | grep -v grep"
+        lines = os.popen(cmd).read().strip().splitlines()
+        processes = []
+        for line in lines:
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) >= 1:
+                pid = parts[0]
+                cmdline = parts[1] if len(parts) > 1 else ""
+                processes.append((pid, cmdline))
+        return processes
+
+    detected_processes = detect_archival_processes()
+    pkill_output = [p[0] for p in detected_processes]
+    d_output = [f"{pid} {cmdline}" for pid, cmdline in detected_processes]
 
     # Utilities
     def check_file_exists(fileexists):
@@ -106,9 +120,7 @@ def default():
     f_output = stream.readlines()
     output = f_output[0].strip() if f_output else "0"
 
-    # Process info
-    pkill_output = pkill_stream.readlines()
-    d_output = d_stream.readlines()
+    # Process info already computed above (pkill_output, d_output)
 
     st.markdown(f"## {archivaljob_stack} Archival Process Status!")
 
