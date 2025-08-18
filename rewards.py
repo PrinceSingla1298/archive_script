@@ -113,59 +113,44 @@ def default():
 
 
 
-    filename_all_files=log_direcotry+"DataProcessingAllFilesDetails_"+getlogsdate+".txt"
-
-    
-    #check file exist if not get recent one file name and get date from there and modify  getlogsdate accordingly
-    #check_file_status=check_file_exists(filename_all_files)
-
-    if check_file_exists(filename_all_files):
-
-        #if not isinstance(filename_all_files, str):
-        #    raise ValueError("Filename must be a string.")
-
-        #st.write(f"The file {filename_all_files} exists.")
-        pass
-
-    else:
-        #st.write(f"The file {filename_all_files} does not exist.")
-        #get recent file and get date  getlogsdate from there
-        #checkfileformon=log_direcotry+"DataProcessingAllFilesDetails_*"
-        getrecentfile="DataProcessingAllFilesDetails"
-        filecheckcommand = f"ls -lrth {log_direcotry} |  grep -i '{getrecentfile}' | tail -1  | awk '{{print $NF}}'"
-        #st.write(f"command is {filecheckcommand}")
-
-        get_latestatetime = os.popen(filecheckcommand).read()
-        #st.write(f"this is {get_latestatetime}")
-
-  
-
-
-
-        get_lastestfiledate = get_substring(get_latestatetime)
-        if get_lastestfiledate:
-            #print(f"Substring between '_' and '.': {substring}")
-            getlogsdate=get_lastestfiledate
-            
-
-        else:
-            st.warning(f"No matching log file found in {log_direcotry}. Unable to determine logs date.")
-            return
-
-        filename_all_files=log_direcotry+"DataProcessingAllFilesDetails_"+getlogsdate+".txt"
-        #st.write(filename_all_files)    
-
-
-
-
+    # Determine logs date based on available files. Prefer AllDetails, then ProcessedFilesDetails.
     filename_all_details=log_direcotry+"DataProcessingAllDetails_"+getlogsdate+".txt"
     filename_processed_files=log_direcotry+"DataProcessedFilesDetails_"+getlogsdate+".txt"
 
+    if not check_file_exists(filename_all_details) and not check_file_exists(filename_processed_files):
+        # Try to infer date from latest AllDetails
+        filecheckcommand_all = (
+            f"ls -1rt {log_direcotry} 2>/dev/null | grep -E '^DataProcessingAllDetails_.*\\.txt$' | tail -1"
+        )
+        latest_all = os.popen(filecheckcommand_all).read().strip()
+        if latest_all:
+            m = re.search(r'DataProcessingAllDetails_(.*?)\.txt', latest_all)
+            if m:
+                getlogsdate = m.group(1)
+                filename_all_details=log_direcotry+"DataProcessingAllDetails_"+getlogsdate+".txt"
+                filename_processed_files=log_direcotry+"DataProcessedFilesDetails_"+getlogsdate+".txt"
+        
+        # If still not found, try ProcessedFilesDetails
+        if not check_file_exists(filename_all_details) and not check_file_exists(filename_processed_files):
+            filecheckcommand_proc = (
+                f"ls -1rt {log_direcotry} 2>/dev/null | grep -E '^DataProcessedFilesDetails_.*\\.txt$' | tail -1"
+            )
+            latest_proc = os.popen(filecheckcommand_proc).read().strip()
+            if latest_proc:
+                m2 = re.search(r'DataProcessedFilesDetails_(.*?)\.txt', latest_proc)
+                if m2:
+                    getlogsdate = m2.group(1)
+                    filename_all_details=log_direcotry+"DataProcessingAllDetails_"+getlogsdate+".txt"
+                    filename_processed_files=log_direcotry+"DataProcessedFilesDetails_"+getlogsdate+".txt"
+
+    # Read row processed count if exists
     stream_file_cmd=log_direcotry+'rowprocessed'
-    cmd_stream= f'cat {stream_file_cmd} | head -1' 
-    stream = os.popen(cmd_stream)
-    f_output = stream.readlines()
-    output=f_output[0] if f_output else "0"
+    output = "0"
+    if os.path.exists(stream_file_cmd):
+        cmd_stream= f'head -1 {stream_file_cmd}'
+        stream = os.popen(cmd_stream)
+        f_output = stream.readlines()
+        output=f_output[0].strip() if f_output else "0"
 
 
 
@@ -189,24 +174,17 @@ def default():
 
 
 
-    if os.path.exists(filename_all_files):
-        #print('The file exists!')
+    if os.path.exists(filename_all_details) or os.path.exists(filename_processed_files):
         pass
     else:
-        #print('The file does not exist.')
         st.title('PROCESS NOT STARTED, Please Contact DBA')
-        st.write(filename_all_files)
-        sys.exit(1) 
+        st.write(log_direcotry)
+        return
 
 
 
 
-    # read csv file
-    all_files = pd.read_csv(filename_all_files,header=None)
-
-    headers = ['filename']
-
-    all_files.columns = headers
+    # No AllFilesDetails file dependency; proceed with available logs
 
 
 
