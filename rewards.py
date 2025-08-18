@@ -354,7 +354,7 @@ def default():
         st.write(f"Script Taking Pause:, {get_currsleep} Seconds, After Every batch exection.") 
 
 
-    st.text(f"Number Of Row Processing: {output}")
+    # timings first, then row count (per dashboard requirement)
 
 
 
@@ -364,23 +364,26 @@ def default():
 
     get_starttime = os.popen(starttime_command).read()
 
-    st.text(f"STARTED: {get_starttime}")
+    st.text(f"Script Starts at: {get_starttime.strip()}")
 
     endtime_command = f"tail -10 {filename_all_details} | grep -i 'Script Ends at:' "
     
     get_endtime = os.popen(endtime_command).read()
     if get_endtime.strip():  # strip removes leading/trailing whitespace
-        st.text(f"ENDTIME: {get_endtime}")
+        st.text(f"Script Ends at: {get_endtime.strip()}")
 
     else:
         check_last_update_time = f'find {filename_all_details} -mmin -2 -exec stat -c "%y" {{}} \\;'
         get_last_updatetime = os.popen(check_last_update_time).read() 
 
         if get_last_updatetime:
-            st.text(f"ENDTIME: {get_endtime}")
+            st.text(f"Script Ends at: {get_endtime.strip()}")
 
         else:
             terminated_time=f"stat -c %y {filename_all_details}"
             get_terminated_time=os.popen(terminated_time).read() 
-            st.text(f"PROCESS TERMINATED AT : {get_terminated_time}")
+            st.text(f"Terminate at: {get_terminated_time.strip()}")
+
+    # finally show number of rows processed
+    st.text(f"Number Of Row Processing: {output}")
 
